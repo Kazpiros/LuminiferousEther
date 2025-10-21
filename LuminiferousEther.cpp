@@ -8,6 +8,12 @@
 #include "hardware/clocks.h"
 #include "hardware/uart.h"
 
+
+#include "ADC_SPI/MCP3x6x_Type_Definitions.h"                                                           // Variable definitions header-file.
+#include "ADC_SPI/MCP3x6x_ADC_Definitions.h"                                                            // ADC definitions header-file.
+#include "ADC_SPI/MCP3x6x_Peripheral_Definitions.h"                                                     // Peripheral definitions header-file.
+#include "ADC_SPI/MCP3x6x_SPI_Definitions.h"  
+
 // SPI Defines
 // We are going to use SPI 0, and allocate it to the following GPIO pins
 // Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
@@ -24,14 +30,14 @@ char dst[count_of(src)];
 #include "blink.pio.h"
 
 void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq) {
-    blink_program_init(pio, sm, offset, pin);
+    /*blink_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
 
     printf("Blinking pin %d at %d Hz\n", pin, freq);
 
     // PIO counter program takes 3 more cycles in total than we pass as
     // input (wait for n + 1; mov; jmp)
-    pio->txf[sm] = (125000000 / (2 * freq)) - 3;
+    pio->txf[sm] = (125000000 / (2 * freq)) - 3;*/
 }
 
 
@@ -67,6 +73,13 @@ int main()
     // Chip select is active-low, so we'll initialise it to a driven-high state
     gpio_set_dir(PIN_CS, GPIO_OUT);
     gpio_put(PIN_CS, 1);
+
+    gpio_set_dir(20, GPIO_OUT); //mclk
+
+    /* ######## start of MCP ######## */
+    MCP3x6x_CONFIG();
+    /* ######## start of MCP ######## */
+
     // For more examples of SPI use see https://github.com/raspberrypi/pico-examples/tree/master/spi
 
     // Get a free channel, panic() if there are none
@@ -143,8 +156,27 @@ int main()
     
     // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
 
+
+    _u32data_t CONV_DATA; 
+    CONV_DATA.DWORD = 0x00000000;
+
+    _u32data_t TEMP_SNSR_DATA;
+    TEMP_SNSR_DATA.DWORD = 0x00000000;
+
+    _u16data_t ADC_CRC;
+    ADC_CRC.WORD = 0x0000;
+
+    uint64_t CALC_CRC = 0x000000000000;
+    
+    int K_addr = 0b01000000;
     while (true) {
-        printf("Hello, world!\n");
-        sleep_ms(1000);
+        gpio_put(17, 0);    
+        //spi_transfer(0b01000001); // Asking address 
+        //spi_transfer(0b01000001); // Asking address & Write mode
+        spi_transfer(0b00000000); // nops
+        sleep_ms(1); 
+        gpio_put(17, 1);    
+        sleep_ms(300); 
+
     }
 }

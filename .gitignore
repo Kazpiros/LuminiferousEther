@@ -1,4 +1,27 @@
-build
 !.vscode/*
 build/
 pico/
+.gitignore
+# Build output
+build/
+CMakeFiles/
+CMakeCache.txt
+*.o
+*.elf
+*.bin
+*.uf2
+*.map
+*.ninja
+*.cmake
+
+# VSCode files
+.vscode/
+*.code-workspace
+
+# macOS files
+.DS_Store
+
+# Logs and temp
+*.log
+*.swp
+*.swo

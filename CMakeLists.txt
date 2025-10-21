@@ -38,7 +38,12 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(LuminiferousEther LuminiferousEther.cpp )
+add_executable(LuminiferousEther
+            LuminiferousEther.cpp
+            ADC_SPI/MCP3x6x_ADC.cpp
+            ADC_SPI/MCP3x6x_Peripheral.cpp
+            ADC_SPI/MCP3x6x_SPI.cpp
+            )
 
 pico_set_program_name(LuminiferousEther "LuminiferousEther")
 pico_set_program_version(LuminiferousEther "0.1")
