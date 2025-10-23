@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "src/cbuf.hpp"
+#include "cbuf.hpp"
 
 /* 
     Used for debugging, Stores data at samplerate S, in circular buffer length 1024,

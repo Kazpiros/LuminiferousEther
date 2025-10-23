@@ -1,63 +1,61 @@
 import serial
 import csv
 import sys
-import numpy as np
+from collections import Counter
 import matplotlib.pyplot as plt
-
-
-def parse_32bit_data(data):
-    ch_id = (data >> 28) & 0xF
-    sgn = (data >> 16) & 0xFFF
-    data_val = data & 0x1FFFF # 17 bits (1 sign 16 normal)
-    if data_val & (1 << 16):
-        data_val -= 1<<17     # make it negative
-    return ch_id, sgn, data_val
 
 def main():
     if len(sys.argv) != 4:
-        print("Usage: python SerialToCSV.py <BAUDRATE> <# OF SAMPLES> <CSV FILENAME>")
+        print("Usage: python SerialToCSV_Hex.py <PORT> <BAUDRATE> <# OF SAMPLES>")
         sys.exit(1)
 
-    baudrate = int(sys.argv[1])
-    num_samples = int(sys.argv[2])
-    csv_filename = sys.argv[3]
+    port = sys.argv[1]
+    baudrate = int(sys.argv[2])
+    num_samples = int(sys.argv[3])
+    csv_filename = "serial_data.csv"
 
-    # Adjust the serial port name as needed (e.g., 'COM3' on Windows or '/dev/ttyUSB0' on Linux)
-    ser = serial.Serial('COM3', baudrate=baudrate, timeout=1)
+    ser = serial.Serial(port, baudrate=baudrate, timeout=1)
 
     samples = []
-    max_val = (1 << 16) - 1 # Max positive value for 17-bit signed is 65535
-    V_REF = 1.2 # in volts
+    sample_count = 0
 
-    samples = [4.8, 5.5, 3.5, 4.6, 6.5, 6.6, 2.6, 3.0]
-    while len(samples) < num_samples:
+    print(f"Reading {num_samples} samples from {port} at {baudrate} baud...")
+
+    while sample_count < num_samples:
         raw_bytes = ser.read(4)
         if len(raw_bytes) == 4:
             data_32bit = int.from_bytes(raw_bytes, byteorder='big')
-            ch_id, sgn, data_val = parse_32bit_data(data_32bit)
-            fdata = (data_val/max_val)*V_REF
-            samples.append((ch_id, sgn, data_val, fdata))
+
+            # Extract least-significant 17 bits
+            data_17bit = data_32bit & 0x1FFFF
+
+            hex_str = f"0x{data_32bit:08X}"
+            bin_str = f"{data_17bit:017b}"  # 17-bit binary string
+
+            samples.append((sample_count, hex_str, bin_str))
+            sample_count += 1
 
     ser.close()
 
+    # Write to CSV
     with open(csv_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['CH_ID', 'SGN', 'DATA', 'FLOAT'])
+        writer.writerow(['SAMPLE_NUM', 'HEX_VALUE', 'BINARY_17BIT'])
         writer.writerows(samples)
 
     print(f"CSV file '{csv_filename}' created with {num_samples} samples.")
 
-    plt.style.use('_mpl-gallery')
+    # --- Histogram of occurrences based on 17-bit values ---
+    values = [s[2] for s in samples]  # binary 17-bit strings
+    counts = Counter(values)
 
-    x = 0.5 + np.arange(8)
-
-    fig, ax = plt.subplots()
-
-    ax.bar(x, samples, width=1, edgecolor="white", linewidth=0.7)
-
-    ax.set(xlim=(0, 8), xticks=np.arange(1, 8),
-           ylim=(0, 8), yticks=np.arange(1, 8))
-
+    plt.figure(figsize=(10, 5))
+    plt.bar(counts.keys(), counts.values(), width=0.6)
+    plt.title("Occurrences of LSB 17-bit Patterns")
+    plt.xlabel("Binary 17-bit Value")
+    plt.ylabel("Occurrences")
+    plt.xticks(rotation=90)
+    plt.tight_layout()
     plt.show()
 
 if __name__ == "__main__":
