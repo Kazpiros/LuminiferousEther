@@ -1,0 +1,285 @@
+Skip to content
+Chat history
+
+You said:
+can you modify this to have a few functions
+these functions must have a pin dedicated to outputting an MCLK frequency that is seperate to all other spi lines. make it user defined, but expect it to be 5-10MHZ
+need:
+have all reads that are non-blocking be triggered (falling edge) by an incoming \IRQ signal (if this is only possible in a c file, and not the pio show me how in c. but try hard to get it in pio)
+
+duplex-read-write-8bit-blocking
+read-8-bit    (non blocking, places in buffer, possibly dma later)
+read-16-bit  (non blocking, places in buffer, possibly dma later)
+read -32 bit (non blocking, places in buffer, possibly dma later)
+and have CS behave how it typically does in spi mode 1,1
+
+so pins needed: mclk, sck, \IRQ, miso, mosi, \CS 
+
+
+
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+; These programs implement full-duplex SPI, with a SCK period of 4 clock
+; cycles. A different program is provided for each value of CPHA, and CPOL is
+; achieved using the hardware GPIO inversion available in the IO controls.
+;
+; Transmit-only SPI can go twice as fast -- see the ST7789 example!
+.pio_version 0 // only requires PIO version 0
+
+.program spi_cpha0
+.side_set 1
+
+; Pin assignments:
+; - SCK is side-set pin 0
+; - MOSI is OUT pin 0
+; - MISO is IN pin 0
+;
+; Autopush and autopull must be enabled, and the serial frame size is set by
+; configuring the push/pull threshold. Shift left/right is fine, but you must
+; justify the data yourself. This is done most conveniently for frame sizes of
+; 8 or 16 bits by using the narrow store replication and narrow load byte
+; picking behaviour of RP2040's IO fabric.
+
+; SPI with Chip Select
+; -----------------------------------------------------------------------------
+;
+; For your amusement, here are some SPI programs with an automatic chip select
+; (asserted once data appears in TX FIFO, deasserts when FIFO bottoms out, has
+; a nice front/back porch).
+;
+; The number of bits per FIFO entry is configured via the Y register
+; and the autopush/pull threshold. From 2 to 32 bits.
+;
+; Pin assignments:
+; - SCK is side-set bit 0
+; - CSn is side-set bit 1
+; - MOSI is OUT bit 0 (host-to-device)
+; - MISO is IN bit 0 (device-to-host)
+;
+; This program only supports one chip select -- use GPIO if more are needed
+;
+; Provide a variation for each possibility of CPHA; for CPOL we can just
+; invert SCK in the IO muxing controls (downstream from PIO)
+
+; CPHA=1: data transitions on the leading edge of each SCK pulse, and is
+; captured on the trailing edge
+
+.program spi_cpha1_cs
+.side_set 2
+
+.wrap_target
+bitloop:
+    out pins, 1        side 0x1 [1]
+    in pins, 1         side 0x0
+    jmp x-- bitloop    side 0x0
+
+    out pins, 1        side 0x1
+    mov x, y           side 0x1
+    in pins, 1         side 0x0
+    jmp !osre bitloop  side 0x0
+
+public entry_point:                 ; Must set X,Y to n-2 before starting!
+    pull ifempty       side 0x2 [1] ; Block with CSn high (minimum 2 cycles)
+    nop                side 0x0 [1]; CSn front porch
+.wrap
+
+% c-sdk {
+#include "hardware/gpio.h"
+static inline void pio_spi_cs_init(PIO pio, uint sm, uint prog_offs, uint n_bits, float clkdiv, bool cpha, bool cpol,
+        uint pin_sck, uint pin_mosi, uint pin_miso) {
+    pio_sm_config c = cpha ? spi_cpha1_cs_program_get_default_config(prog_offs) : spi_cpha0_cs_program_get_default_config(prog_offs);
+    sm_config_set_out_pins(&c, pin_mosi, 1);
+    sm_config_set_in_pins(&c, pin_miso);
+    sm_config_set_sideset_pins(&c, pin_sck);
+    sm_config_set_out_shift(&c, false, true, n_bits);
+    sm_config_set_in_shift(&c, false, true, n_bits);
+    sm_config_set_clkdiv(&c, clkdiv);
+
+    pio_sm_set_pins_with_mask(pio, sm, (2u << pin_sck), (3u << pin_sck) | (1u << pin_mosi));
+    pio_sm_set_pindirs_with_mask(pio, sm, (3u << pin_sck) | (1u << pin_mosi), (3u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
+    pio_gpio_init(pio, pin_mosi);
+    pio_gpio_init(pio, pin_miso);
+    pio_gpio_init(pio, pin_sck);
+    pio_gpio_init(pio, pin_sck + 1);
+    gpio_set_outover(pin_sck, cpol ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    hw_set_bits(&pio->input_sync_bypass, 1u << pin_miso);
+
+    uint entry_point = prog_offs + (cpha ? spi_cpha1_cs_offset_entry_point : spi_cpha0_cs_offset_entry_point);
+    pio_sm_init(pio, sm, entry_point, &c);
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, n_bits - 2));
+    pio_sm_exec(pio, sm, pio_encode_set(pio_y, n_bits - 2));
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
+ChatGPT said:
+
+Thought for 31s
+Nice — I’ll give you a ready-to-drop-in PIO + C solution that:
+Provides a dedicated MCLK state machine (user-configurable target 5–10 MHz).
+Keeps SPI as CPOL=1, CPHA=1 (SPI mode 1,1) with CS behavior like your original spi_cpha1_cs.
+Implements a duplex blocking 8-bit transfer function (full-duplex, blocking).
+Implements IRQ-triggered non-blocking readers for 8/16/32-bit words (they place data into the PIO RX FIFO; C side reads the FIFO into a buffer). The PIO readers detect a falling edge on a user IRQ pin using wait instructions (PIO-side edge detection). I also include a C fallback showing how to trigger reads from a GPIO IRQ handler if you prefer/need that instead of a PIO wait.
+Exposes simple init/start/stop helpers and example usage.
+This is a best-effort PIO-centric design — PIO handles sampling and IRQ waiting. If you find a corner where PIO edge detection isn't precise enough for your specific hardware signal timing, the included GPIO-IRQ fallback is ready to use.
+How it works (short)
+spi_cpha1_cs_with_irq PIO program: waits for an IRQ falling edge (via wait 1 pin then wait 0 pin) and then performs an inbound-only read of N bits (configured via pio_sm_exec setting X/Y and autopush thresholds). Autopush moves completed frames into the RX FIFO for the CPU to read later (non-blocking from the CPU's POV). You can load variants for 8/16/32 or make the same program generic by setting thresholds at runtime.
+spi_duplex_cpha1_cs PIO program: full-duplex blocking transfer program (works like your earlier spi_cpha1_cs but constrained to 8-bit frames in the wrapper function).
+mclk_toggle PIO program: a tiny SM that toggles a pin every two instructions; the SM clkdiv is computed to approximate the desired MCLK frequency (5–10 MHz recommended). You can start/stop this SM independently.
+Files to add / drop into your project
+Below is one C file with embedded PIO assembler (using the % c-sdk { ... } style shown in your snippet). You can split as you like.
+// spi_pio_mclk.c
+// Requires: pico-sdk (hardware/pio.h, hardware/clocks.h, hardware/gpio.h, hardware/irq.h)
+
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "hardware/irq.h"
+#include "hardware/dma.h"
+
+//////////////////////////
+// PIO programs
+//////////////////////////
+/*
+  - spi_duplex_cpha1_cs : full-duplex blocking 8-bit transfers (uses TX FIFO to pull data; assert CS when active)
+  - spi_irq_reader       : waits for falling edge on IRQ pin, then reads configured bits from MISO into RX FIFO (autopush enabled)
+  - mclk_toggle          : toggles a pin forever; SM clkdiv controls frequency
+*/
+
+// Full-duplex SPI mode 1,1 with CS side-set. Blocking: CPU pushes TX data into TX FIFO and waits for RX.
+.program spi_duplex_cpha1_cs
+.side_set 2
+
+.wrap_target
+bitloop:
+    out pins, 1        side 0x1 [1]   ; drive SCK low (side bit 0x1 = SCK low if we set map accordingly)
+    in pins, 1         side 0x0       ; sample MISO on rising edge (CPHA=1 requires capture on trailing edge)
+    jmp x-- bitloop    side 0x0
+    out pins, 1        side 0x1
+    mov x, y           side 0x1
+    in pins, 1         side 0x0
+    jmp !osre bitloop  side 0x0
+
+public duplex_entry:
+    pull ifempty       side 0x2 [1]   ; block with CSn high (side 0x2 sets CSn high)
+    nop                side 0x0 [1]   ; CSn front porch
+.wrap
+
+// Reader that waits for falling edge on irq_pin (mapped as an input pin) then captures n bits into RX FIFO
+// The program expects autopush enabled; threshold configured by c config.
+.program spi_irq_reader
+.side_set 2
+
+; state machine note:
+; - We will use the WAIT instruction to detect a falling edge on `irq_pin` (configured as the 'wait' pin by pio config)
+; - After falling edge, perform bitloop of 'in pins,1' with side-set toggling SCK/CS as in spi program.
+.wrap_target
+start:
+    wait 1 pin  ; wait until IRQ goes high (this ensures we start when IRQ togges from high->low)
+    wait 0 pin  ; now wait for IRQ low => falling edge detected
+    ; now perform bit capture loop (X must hold number_of_bits - 1)
+bitloop_irq:
+    out pins, 1        side 0x1 [1]
+    in pins, 1         side 0x0
+    jmp x-- bitloop_irq side 0x0
+    ; when finished, return to wait for next falling edge
+    jmp start         side 0x2
+.wrap
+
+// Small toggler for MCLK: toggles a set pin repeatedly;
+// frequency depends on SM clock divider and instruction timing.
+.program mclk_toggle
+.wrap_target
+    set pins, 1 [0]    ; set pin high
+    set pins, 0 [0]    ; set pin low
+    jmp wrap_target
+.wrap
+
+//////////////////////////
+// C wrappers & helpers
+//////////////////////////
+
+% c-sdk {
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "hardware/irq.h"
+#include "hardware/dma.h"
+#include "pico/stdlib.h"
+
+// Externs automatically generated by the assembler when compiled via pico-sdk macros
+extern const pio_program_t spi_duplex_cpha1_cs_program;
+extern const pio_program_t spi_irq_reader_program;
+extern const pio_program_t mclk_toggle_program;
+extern uint spi_duplex_cpha1_cs_program_init;
+extern uint spi_irq_reader_program_init;
+extern uint mclk_toggle_program_init;
+
+static const uint SYSTEM_CLK = 125000000u; // change if you run different clk
+
+// compute clkdiv to get approximately target_freq on a two-instruction-per-cycle toggler:
+// Full cycle frequency ~ system_clk / (instr_per_cycle * clkdiv * 2)
+// instr_per_cycle = 1 normally; for safety we derive clkdiv = system_clk / (target_freq * 2)
+static inline float calc_mclk_clkdiv(float target_hz) {
+    if (target_hz <= 0.0f) return 1.0f;
+    return (float)clock_get_hz(clk_sys) / (2.0f * target_hz);
+}
+
+// Initialize the MCLK SM on given pio/sm/pin. target_hz ~ 5e6 - 10e6
+void mclk_init(PIO pio, uint sm, uint pin_mclk, float target_hz) {
+    uint offset = pio_add_program(pio, &mclk_toggle_program);
+    pio_sm_config c = mclk_toggle_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, pin_mclk, 1);
+    sm_config_set_sideset_pins(&c, 0); // not used
+    // configure pin as set-pin
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_mclk, 1, true);
+    pio_sm_init(pio, sm, offset, &c);
+    float clkdiv = calc_mclk_clkdiv(target_hz);
+    pio_sm_set_clkdiv(pio, sm, clkdiv);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+// Stop MCLK SM
+void mclk_stop(PIO pio, uint sm) {
+    pio_sm_set_enabled(pio, sm, false);
+}
+
+// SPI duplex init (blocking 8-bit transfers). CPOL=1, CPHA=1 assumed.
+// pins: sck, mosi, miso, cs (CS active low)
+void spi_duplex_init(PIO pio, uint sm, uint pin_sck, uint pin_mosi, uint pin_miso, uint pin_cs, float clkdiv) {
+    uint offset = pio_add_program(pio, &spi_duplex_cpha1_cs_program);
+    pio_sm_config c = spi_duplex_cpha1_cs_program_get_default_config(offset);
+
+    // mapping
+    sm_config_set_out_pins(&c, pin_mosi, 1);
+    sm_config_set_in_pins(&c, pin_miso);
+    sm_config_set_sideset_pins(&c, pin_sck); // side-set uses bit0 = sck, bit1 = csn (we manipulate via set on start)
+    // Configure autopush/pull for 8 bits
+    sm_config_set_out_shift(&c, false, true, 8);
+    sm_config_set_in_shift(&c, false, true, 8);
+    sm_config_set_clkdiv(&c, clkdiv);
+
+    // set pin directions: sck and cs as output, mosi out, miso in
+    uint side_mask = (3u << pin_sck); // bit0 sck, bit1 cs mapped to pin_sck and pin_sck+1 if you choose; here we assume cs at pin_sck+1 if contiguous
+    // but we'll set cs explicitly later:
+    pio_sm_set_pins_with_mask(pio, sm, (2u << pin_sck), (3u << pin_sck) | (1u << pin_mosi));
+    pio_sm_set_pindirs_with_mask(pio, sm, (3u << pin_sck) | (1u << pin_mosi), (3u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
+
+    // init pins
+    pio_gpio_init(pio, pin_mosi);
+    pio_gpio_init(pio, pin_miso);
+    pio_gpio_init(pio, pin_sck);
+    pio_gpio_init(pio,
+Something went wrong while generating the response. If this issue persists please contact us through our help center at help.openai.com.
+
+
+Retry
+
+
+
+ChatGPT can make mistakes. Check important info. See Cookie Preferences.

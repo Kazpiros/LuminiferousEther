@@ -27,19 +27,6 @@
 const char src[] = "Hello, world! (from DMA)";
 char dst[count_of(src)];
 
-#include "blink.pio.h"
-
-void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq) {
-    /*blink_program_init(pio, sm, offset, pin);
-    pio_sm_set_enabled(pio, sm, true);
-
-    printf("Blinking pin %d at %d Hz\n", pin, freq);
-
-    // PIO counter program takes 3 more cycles in total than we pass as
-    // input (wait for n + 1; mov; jmp)
-    pio->txf[sm] = (125000000 / (2 * freq)) - 3;*/
-}
-
 
 int64_t alarm_callback(alarm_id_t id, void *user_data) {
     // Put your timeout handler code in here
@@ -57,18 +44,6 @@ void gpio_callback(uint gpio, uint32_t events) { //The GPIO callback function to
 }
 
 
-// UART defines
-// By default the stdout UART is `uart0`, so we will use the second one
-#define UART_ID uart1
-#define BAUD_RATE 115200
-
-// Use pins 4 and 5 for UART1
-// Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
-#define UART_TX_PIN 4
-#define UART_RX_PIN 5
-
-
-
 int main()
 {
     
@@ -78,6 +53,8 @@ int main()
 
     // SPI initialisation. This example will use SPI at 1MHz.
     spi_init(SPI_PORT, 1000*1000);
+    spi_set_format(SPI_PORT, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
+    //we use spi mode 1,1
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_CS,   GPIO_FUNC_SIO);
     gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
@@ -125,18 +102,6 @@ int main()
     // receive buffer (dst), so we can print it out from there.
     puts(dst);
 
-    // PIO Blinking example
-    PIO pio = pio0;
-    uint offset = pio_add_program(pio, &blink_program);
-    printf("Loaded program at %d\n", offset);
-    
-    #ifdef PICO_DEFAULT_LED_PIN
-    blink_pin_forever(pio, 0, offset, PICO_DEFAULT_LED_PIN, 3);
-    #else
-    blink_pin_forever(pio, 0, offset, 6, 3);
-    #endif
-    // For more pio examples see https://github.com/raspberrypi/pico-examples/tree/master/pio
-
     // Interpolator example code
     //interp_config cfg = interp_default_config();
     // Now use the various interpolator library functions for your use case
@@ -153,21 +118,6 @@ int main()
     printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
     printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
     // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
-
-    // Set up our UART
-    uart_init(UART_ID, BAUD_RATE);
-    // Set the TX and RX pins by using the function select on the GPIO
-    // Set datasheet for more information on function select
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-    
-    // Use some the various UART functions to send out data
-    // In a default system, printf will also output via the default UART
-    
-    // Send out a string, with CR/LF conversions
-    uart_puts(UART_ID, " Hello, UART!\n");
-    
-    // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
 
 
     _u32data_t CONV_DATA; 
@@ -236,9 +186,10 @@ int main()
     SPI_WRT(_LOCK_,LOCK_CFG); //allows full write access, put this first if funkyness is happening
     sleep_us(10);
 
-    //temporary
+    //
     CONV_START(MUX_VINP_CH0);
     //
+
     int temp = 0;
     while (true) {
         gpio_put(PIN_CS, 0);   
@@ -246,32 +197,5 @@ int main()
         temp = spi_write_read_blocking(SPI_PORT, zeros, rxbuf, 4); // clock 4 bytes, reading DATA0..DATA3
         gpio_put(PIN_CS, 1);
         sleep_us(10);    
-        uint32_t sample = (rxbuf[0] << 24) | (rxbuf[1] << 16) | (rxbuf[2] << 8) | rxbuf[3];
-        printf("0x%08X\n", sample);
-        
-        // parse rxbuf into 32-bit value (depending on DATA_FORMAT)
-        // Example: uint32_t sample = (rxbuf[0]<<24) | (rxbuf[1]<<16) | (rxbuf[2]<<8) | rxbuf[3];
-        // (do not raise CS here; keep streaming)
     }
-
-    //CRCCFG 16 bit dont need
-    //SPI_WRT(_CRCCFG_,0x0); // make it zero
-
-    //gpio_put(17, 1);    
-    sleep_ms(10);
-    CONV_START(MUX_VINP_CH0);
-    sleep_ms(10);
-
-    //gpio_put(17, 0); 
-    //irq flag gets raised on the second bit of the adc data stream
-    //spi_transfer(0b01000000 | 0b00101000); // device addr | continous ADC output | start fast command
-    //this also overwrites ADC mode for wahtever is in the config0 register
-    //gpio_put(17, 1); 
-    //sleep_ms(100);
-
-    //no irq pull up needed.
-    // scope SDI, SDO, CLK, CS -> once config is confirmed ok -> SDI, SDO, CLK, IRQ 
-    while (true) {
-
-    }   
 }

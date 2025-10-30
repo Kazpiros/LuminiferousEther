@@ -39,7 +39,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(LuminiferousEther
-            LuminiferousEther.cpp
+            src/LuminiferousEther.cpp
             ADC_SPI/MCP3x6x_ADC.cpp
             ADC_SPI/MCP3x6x_Peripheral.cpp
             ADC_SPI/MCP3x6x_SPI.cpp
@@ -49,7 +49,7 @@ pico_set_program_name(LuminiferousEther "LuminiferousEther")
 pico_set_program_version(LuminiferousEther "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(LuminiferousEther ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+pico_generate_pio_header(LuminiferousEther ${CMAKE_CURRENT_LIST_DIR}/src/blink.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(LuminiferousEther 0)
