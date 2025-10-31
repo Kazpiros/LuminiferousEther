@@ -66,10 +66,6 @@ int main()
 
     //gpio_set_dir(20, GPIO_IN); //IRQ
 
-    /* ######## start of MCP ######## */
-    //MCP3x6x_CONFIG();
-    /* ######## start of MCP ######## */
-
     // For more examples of SPI use see https://github.com/raspberrypi/pico-examples/tree/master/spi
 
     // Get a free channel, panic() if there are none
@@ -102,23 +98,7 @@ int main()
     // receive buffer (dst), so we can print it out from there.
     puts(dst);
 
-    // Interpolator example code
-    //interp_config cfg = interp_default_config();
-    // Now use the various interpolator library functions for your use case
-    // e.g. interp_config_clamp(&cfg, true);
-    //      interp_config_shift(&cfg, 2);
-    // Then set the config 
-    //interp_set_config(interp0, 0, &cfg);
-    // For examples of interpolator use see https://github.com/raspberrypi/pico-examples/tree/master/interp
-
-    // Timer example code - This example fires off the callback after 2000ms
-    add_alarm_in_ms(2000, alarm_callback, NULL, false);
-    // For more examples of timer use see https://github.com/raspberrypi/pico-examples/tree/master/timer
-
-    printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
-    printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
-    // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
-
+    /* ADC Stuff start */
 
     _u32data_t CONV_DATA; 
     CONV_DATA.DWORD = 0x00000000;
