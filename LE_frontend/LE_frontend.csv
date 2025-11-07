@@ -1,0 +1,15 @@
+Reference,Qty,Value,DNP,Exclude from BOM,Exclude from Board,Footprint,Datasheet
+"1V2_TP1,2V5TP1,BRO_TP1,JIN_TP1,JOUT_TP1,OP_BRO1,OP_JIN1",7,TestPoint,,,,TestPoint:TestPoint_Pad_D2.0mm,~
+"C1,C24",2,1u,,,,Capacitor_THT:C_Rect_L7.2mm_W4.5mm_P5.00mm_FKS2_FKP2_MKS2_MKP2,~
+"C2,C3",2,47n,,,,Capacitor_THT:C_Rect_L7.2mm_W3.0mm_P5.00mm_FKS2_FKP2_MKS2_MKP2,~
+C21,1,0.1u,,,,Capacitor_THT:C_Rect_L7.2mm_W3.0mm_P5.00mm_FKS2_FKP2_MKS2_MKP2,~
+"D1,D2",2,TSD05CDYFR,,,,Diode_SMD:D_SOD-323,~
+FB1,1,FerriteBead_Small,,,,Resistor_SMD:R_0402_1005Metric,~
+"J2,J6",2,Conn_01x01,,,,Connector_PinSocket_2.54mm:PinSocket_1x01_P2.54mm_Vertical,~
+J3,1,Conn_01x06,,,,Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical,~
+J4,1,Conn_01x02,,,,Connector_PinSocket_2.54mm:PinSocket_1x02_P2.54mm_Vertical,~
+"U1,U9",2,LME49721,,,,Package_SO:SOIC-8_3.9x4.9mm_P1.27mm,https://www.ti.com/lit/ds/symlink/tlv9062.pdf
+U2,1,MCP3461RT-E/ST,,,,Package_SO:TSSOP-20_4.4x6.5mm_P0.65mm,MCP3461RT-E/ST
+U3,1,NCP163ASN330T1G,,,,Package_TO_SOT_SMD:SOT-23-5,https://www.onsemi.com/pdf/datasheet/ncp163-d.pdf
+U4,1,REF35120QDBVR,,,,Package_TO_SOT_SMD:SOT-23-6,https://www.ti.com/lit/ds/symlink/ref35.pdf
+U5,1,MCP48CVD21T-E/MF,,,,Package_DFN_QFN:DFN-10-1EP_3x3mm_P0.5mm_EP1.55x2.48mm,MCP48CVD21T-E/MF
