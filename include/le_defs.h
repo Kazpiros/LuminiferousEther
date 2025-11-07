@@ -19,6 +19,10 @@
 #include "include/adc_spi_config.hpp"
 #include "include/filter_coef.h"
 
+#define SAMPLING_FREQUENCY 3e5
+#define OUTPUT_FREQUENCY 1e5 // idk if this is even right
+#define DECIMATION_FACTOR () (static_cast<int>(SAMPLING_FREQUENCY / OUTPUT_FREQUENCY))
+
 #define SPI_PORT spi0 // all this will be removed soon
 #define PIN_MISO 16
 #define PIN_CS   17

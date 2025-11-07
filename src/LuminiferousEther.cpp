@@ -53,6 +53,11 @@ int moving_average(cbuf* inBuffer, cbuf* outBuffer)
     return outBuffer->read_cbuf(0);
 }
 
+void downsample()
+{
+    // need phase accumilator here
+}
+
 int main()
 {
     
