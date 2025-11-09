@@ -7,6 +7,8 @@
 #include "include/le_defs.h"
 //#include "include/adc_spi_config.hpp"
 
+//run with cmake --build build
+
 /**
  * TODO:
  * - Need to add a #define for all CS pins so im not staring at "17"s
@@ -69,7 +71,7 @@ int main()
     gpio_set_dir(PIN_IRQ, GPIO_IN);
     gpio_pull_down(PIN_IRQ);
     // set up irq: call handler on both edges
-    gpio_set_irq_enabled_with_callback(PIN_IRQ, GPIO_IRQ_EDGE_RISE, true, &gpio_irq_handler);
+    //gpio_set_irq_enabled_with_callback(PIN_IRQ, GPIO_IRQ_EDGE_RISE, true, &gpio_irq_handler);
 
 
     spi_init(SPI_PORT, 1000*1000);
@@ -89,6 +91,10 @@ int main()
     sleep_us(10);
 
     int temp = 0;
+    NCO osc{};
+    osc.frequency((float)OUTPUT_FREQUENCY);
+
+    dac_config_set();
 
     while (1) {
         tight_loop_contents();
@@ -101,6 +107,13 @@ int main()
         InputBuffer.write_cbuf(sample); // get it loaded in!
         uint32_t proc_sample = moving_average(&InputBuffer, &OutputBuffer);
         printf("\nSample: %x \n Processed: %x", sample, proc_sample); // debug via serial
-        sleep_us(10);    
+        
+        //OutputBuffer.write_cbuf(osc.sin_inc());
+        uint out = osc.sin_inc();
+        dac_static_write(out);
+
+        sleep_us(100);    
+
+
     }
 }
