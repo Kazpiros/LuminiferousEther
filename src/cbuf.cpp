@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -8,7 +7,7 @@
 
 void cbuf::write_cbuf(int val)
 {
-    tbuf->buffer[(++tbuf->writeIndex) & BUFFER_SIZE_MASK] = val;
+    tbuf->buffer[(tbuf->writeIndex++) & BUFFER_SIZE_MASK] = val;
 }
 
 int cbuf::read_cbuf(unsigned Xn)

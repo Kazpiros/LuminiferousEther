@@ -11,10 +11,10 @@ class cbuf
 {
     private:
         int BUFFER_SIZE;
-        int BUFFER_SIZE_MASK = (BUFFER_SIZE-1U);
+        int BUFFER_SIZE_MASK = (BUFFER_SIZE-1);
         
         typedef struct circular_buf{
-            int *buffer; //dynamic allocation, should only run once..
+            int *buffer; 
             int readIndex;
             int writeIndex;
         } circular_buf;

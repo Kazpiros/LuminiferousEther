@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "LE_Interface",
+			"path": "."
+		},
+		{
+			"name": "pico",
+			"path": "../../pico"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"print": "cpp"
+		}
+	}
+}

@@ -12,6 +12,8 @@ Specs:
 ---
 
 #TODO
+- Fix ADC input 
+  - My theory is R7 is loading down the Guitar. need 50-100k to fix this.
 - RTOS
 - PASSTHRU
 - CONIDITIONING

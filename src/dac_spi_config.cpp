@@ -21,5 +21,7 @@ void dac_config_set()
 
 void dac_static_write(uint8_t data)
 {
+    gpio_put(17, 0);
     spi_write_blocking(SPI_PORT, &data, 1);
+    gpio_put(17, 1);
 }
