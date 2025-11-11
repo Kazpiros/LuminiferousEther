@@ -1,7 +1,6 @@
 #ifndef NCO_HPP
 #define NCO_HPP
 
-#include <cstdlib>
 
 #include "include/le_defs.h"
 
@@ -60,7 +59,7 @@ class NCO{
     void frequency(float f)
     {
         // Convert the frequency to a fractional difference in phase
-		m_dphase = (int)(f * ONE_ROTATION / SAMPLING_FREQUENCY);
+		m_dphase = (int)(f * ONE_ROTATION / SAMPLE_RATE);
     }
     uint sin_inc(void) //operator ()(void) {
 	{

@@ -41,6 +41,8 @@ src/cbuf.cpp
 src/dac_spi_config.cpp
 src/adc_spi_config.cpp
 src/handlers.cpp
+src/pio_spi.cpp
+src/decimate.cpp
 
 ADC_SPI/MCP3x6x_ADC.cpp
 ADC_SPI/MCP3x6x_Peripheral.cpp
@@ -52,8 +54,7 @@ pico_set_program_version(le "0.1")
 
 # Generate PIO header
 pico_generate_pio_header(le 
-    ${CMAKE_CURRENT_LIST_DIR}/src/blink.pio
-    ${CMAKE_CURRENT_LIST_DIR}/src/serial.pio
+    ${CMAKE_CURRENT_LIST_DIR}/src/spi.pio
     )
 
 # Modify the below lines to enable/disable output over UART/USB
@@ -70,11 +71,13 @@ target_link_libraries(le
         hardware_timer
         hardware_clocks
         hardware_uart
+        pico_binary_info
 )
 
 # Add the standard include files to the build
 target_include_directories(le PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/ADC_SPI
 )
 
 pico_add_extra_outputs(le)

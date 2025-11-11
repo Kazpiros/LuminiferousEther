@@ -39,6 +39,18 @@
     "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
     "files.associations": {
         "cstdint": "cpp",
-        "compare": "cpp"
+        "compare": "cpp",
+        "*.pio": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "random": "cpp",
+        "chrono": "cpp",
+        "pio_spi.h": "c",
+        "le_defs.h": "c",
+        "spi.pio.h": "c",
+        "pio.h": "c",
+        "mcp3x6x_type_definitions.h": "c",
+        "stdint.h": "c",
+        "mcp3x6x_spi_definitions.h": "c"
     }
 }

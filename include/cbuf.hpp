@@ -5,13 +5,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-//#define BUFFER_SIZE 16U
-//#define BUFFER_SIZE_MASK (BUFFER_SIZE-1U)
 class cbuf
 {
     private:
         int BUFFER_SIZE;
-        int BUFFER_SIZE_MASK = (BUFFER_SIZE-1);
+        int BUFFER_SIZE_MASK;  // Don't initialize here!
         
         typedef struct circular_buf{
             int *buffer; 
@@ -27,6 +25,7 @@ class cbuf
         cbuf(int buffer_size)
         {
             BUFFER_SIZE = buffer_size;
+            BUFFER_SIZE_MASK = (BUFFER_SIZE - 1);  // Set it here in constructor
             init();
         }
 
@@ -34,7 +33,7 @@ class cbuf
         {
             delete[] tbuf->buffer;
             delete tbuf;
-        } // make a proper destructor
+        }
 
         void write_cbuf(int val);
 

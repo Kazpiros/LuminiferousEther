@@ -1,23 +1,53 @@
 .program serial
+.side_set 2 
 
 .wrap_target
-    out pins, 1
+    bitloop:
+        out pins, 1         side 0x1 [1] 
+        in pins, 1          side 0x0 
+        jmp x-- bitloop     side 0x0
+
+        out pins, 1         side 0x1
+        mov x, y            side 0x1
+        in pins, 1          side 0x0
+        jmp !osre bitloop   side 0x0
+
+    public entry_point:
+        pull ifempty        side 0x2 [1]
+        nop                 side 0x0 [1]
+        
 .wrap
 
 % c-sdk {
-static inline void serial_program_init(PIO pio, uint sm, uint offset, uint data_pin, float clk_div)
+#include "hardware/gpio.h"
+static inline void serial_program_init(PIO pio, uint sm, uint offset, uint n_bits,
+    uint pin_sck, uint pin_mosi, uint pin_miso, float clk_div)
 {
-  
-    pio_gpio_init(pio, data_pin); // pin to be used in "pins"
-    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, true);
+    pio_gpio_init(pio, pin_mosi); // pin to be used in "pins"
+    pio_gpio_init(pio, pin_miso);
+    pio_gpio_init(pio, pin_sck);
+    pio_gpio_init(pio, pin_sck+1); // cs
+    pio_sm_set_pins_with_mask(pio, sm, (2u << pin_sck), (3u << pin_sck) | (1u << pin_mosi));
+    pio_sm_set_pindirs_with_mask(pio, sm, (3u << pin_sck) | (1u << pin_mosi), (3u << pin_sck) | (1u << pin_mosi) | (1u << pin_miso));
+    gpio_set_outover(pin_sck, GPIO_OVERRIDE_NORMAL); // may be "invert"
+    hw_set_bits(&pio->input_sync_bypass, 1u << pin_miso);
+    //pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, true);
 
   
     pio_sm_config c = serial_program_get_default_config(offset);
-    sm_config_set_out_pins(&c, data_pin, 1); //sets the outputs
+    sm_config_set_out_pins(&c, pin_mosi, 1); //sets the outputs
+    sm_config_set_in_pins(&c, pin_miso); //sets the outputs
+    sm_config_set_sideset_pins(&c, pin_sck); //sets the outputs, sck and cs always have to be next to eachother
+
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX); // set the setting for fifo external interaction
     sm_config_set_clkdiv(&c, clk_div);
-    sm_config_set_out_shift(&c, true, true, 32);
-    pio_sm_init(pio, sm, offset, &c);
+    sm_config_set_out_shift(&c, false, true, n_bits);
+    sm_config_set_in_shift(&c, false, true, n_bits);
+
+    uint entry_point = offset + serial_offset_entry_point; 
+    pio_sm_init(pio, sm, entry_point, &c);
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, n_bits - 2));
+    pio_sm_exec(pio, sm, pio_encode_set(pio_y, n_bits - 2));
     pio_sm_set_enabled(pio, sm, true);
 }
 %}
